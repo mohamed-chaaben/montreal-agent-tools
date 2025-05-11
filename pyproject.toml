@@ -1,14 +1,16 @@
-[project]
+[tool.poetry]
 name = "Montreal-Agent"
 version = "0.1.0"
-description = ""
+description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.11"
-dependencies = [
-    "aiohttp>=3.11.18",
-    "fastapi>=0.115.12",
-    "fastmcp>=2.3.3",
-    "mcp[cli]>=1.8.0",
-    "praw>=7.8.1",
-    "python-dotenv>=1.1.0",
-]
+authors = ["Your Name <you@example.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+aiohttp = "^3.11.18"
+fastapi = "^0.115.12"
+fastmcp = "^2.3.3"
+mcp = { version = "^1.8.0", extras = ["cli"] }
+praw = "^7.8.1"
+python-dotenv = "^1.1.0"
