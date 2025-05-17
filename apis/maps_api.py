@@ -1,66 +1,63 @@
-import os
-import aiohttp
+import os, aiohttp, asyncio
 
 MAPS_API_URL = "https://maps.googleapis.com/maps/api/directions/json"
 
+async def _fetch_best(origin: str, destination: str, mode: str):
+    params = {
+        "origin":      origin,
+        "destination": destination,
+        "key":         os.environ['GOOGLE_MAPS_API_KEY'],
+        "mode":        mode,            # only one mode per request :contentReference[oaicite:0]{index=0}
+        "region":      "ca",
+        "language":    "en",
+        "alternatives": "false",        # only the single best route :contentReference[oaicite:1]{index=1}
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.get(MAPS_API_URL, params=params) as resp:
+            data = await resp.json()
+
+    routes = data.get("routes", [])
+    if not routes:
+        return None
+
+    leg = routes[0]["legs"][0]
+    return {
+        "mode":          mode,
+        "duration_text": leg["duration"]["text"],
+        "duration_sec":  leg["duration"]["value"],  # compare directly in seconds
+        "distance":      leg["distance"]["text"],
+        "start_address": leg["start_address"],
+        "end_address":   leg["end_address"],
+        "steps": [
+            {
+                "instruction": step["html_instructions"],
+                "duration":    step["duration"]["text"],
+                "distance":    step["distance"]["text"],
+            }
+            for step in leg["steps"]
+        ]
+    }
 
 async def get_directions(origin: str, destination: str):
     """
-    Get directions between two locations. The LLM has later on to return the best route, not all of them.
+    Get directions between two locations. The LLM has later on to return the transit route. Return the walking route only if it's not far.
     :param origin: The origin location, if it's coordonates accept them latitude,langitude.
     :param destination: The destination location.
     :return: routes, origin, destination
     """
-    params = {
-        "origin": origin,
+    walk, transit = await asyncio.gather(
+        _fetch_best(origin, destination, "walking"),
+        _fetch_best(origin, destination, "transit"),
+    )
+
+    # Filter out any that failed
+    routes = [r for r in (walk, transit) if r]
+    if not routes:
+        return {"status": "error", "message": "no routes found"}
+
+    return {
+        "status":      "success",
+        "origin":      origin,
         "destination": destination,
-        "key": os.environ.get('GOOGLE_MAPS_API_KEY'),
-        "mode": "transit",
-        "region": "ca",
-        "language": "en",
-        "alternatives": "true"
+        "routes":      routes
     }
-
-    async with aiohttp.ClientSession() as session:
-        async with session.get(MAPS_API_URL, params=params) as response:
-            data = await response.json()
-
-        routes = []
-        for route in data.get("routes", []):
-            legs = route.get("legs", [{}])[0]
-            route_info = {
-                "summary": route.get("summary", ""),
-                "duration": legs.get("duration", {}).get("text", ""),
-                "distance": legs.get("distance", {}).get("text", ""),
-                "start_address": legs.get("start_address", ""),
-                "end_address": legs.get("end_address", ""),
-                "steps": []
-            }
-            for step in legs.get("steps", []):
-                transit_details = step.get("transit_details", {})
-                step_info = {
-                    "instruction":
-                    step.get("html_instructions", ""),
-                    "duration":
-                    step.get("duration", {}).get("text", ""),
-                    "distance":
-                    step.get("distance", {}).get("text", ""),
-                    "transit_line":
-                    transit_details.get("line", {}).get("name", ""),
-                    "transit_stops":
-                    transit_details.get("num_stops", 0),
-                    "departure_stop":
-                    transit_details.get("departure_stop", {}).get("name", ""),
-                    "arrival_stop":
-                    transit_details.get("arrival_stop", {}).get("name", "")
-                }
-                route_info["steps"].append(step_info)
-
-            routes.append(route_info)
-
-        return {
-            "status": "success",
-            "routes": routes,
-            "origin": origin,
-            "destination": destination
-        }
