@@ -14,7 +14,7 @@ async def get_weather():
       "longitude": -73.5673,
       "current":
       "temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m",
-      "timezone": "auto",
+      "timezone": "America/New_York",
       "forecast_days": 1
   }
   try:
