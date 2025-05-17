@@ -7,7 +7,7 @@ MAPS_API_URL = "https://maps.googleapis.com/maps/api/directions/json"
 async def get_directions(origin: str, destination: str):
     """
     Get directions between two locations. The LLM has later on to return the best route, not all of them.
-    :param origin: The origin location.
+    :param origin: The origin location, if it's coordonates accept them latitude,langitude.
     :param destination: The destination location.
     :return: routes, origin, destination
     """
